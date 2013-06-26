@@ -22,7 +22,7 @@ namespace CetonCSV
 
                     foreach (var stat in stats)
                     {
-                        w.WriteLine("{0},{1},{2},{3},{4},{5},{6},{7},{8}", DateTime.Now, stat.TunerIndex, stat.Temperature, stat.SignalLevel, stat.SignalSNR, stat.Frequency, stat.ChannelNumber, stat.TransportState, stat.Modulation, stat.CopyProtectionStatus);
+                        w.WriteLine("{0:s},{1},{2},{3},{4},{5},{6},{7},{8}", DateTime.Now, stat.TunerIndex, stat.Temperature, stat.SignalLevel, stat.SignalSNR, stat.Frequency, stat.ChannelNumber, stat.TransportState, stat.Modulation, stat.CopyProtectionStatus);
                     }
 
                     w.Flush();
