@@ -16,6 +16,10 @@ namespace Ceton
         public decimal? SignalSNR { get; set; }
         public int? Frequency { get; set; }
         public int? ChannelNumber { get; set; }
+
+        public string TransportState { get; set; }
+        public string Modulation { get; set; }
+        public string CopyProtectionStatus { get; set; }
     }
 
     [Flags]
@@ -26,8 +30,11 @@ namespace Ceton
         SignalSNR = 4,
         Frequecy = 8,
         ChannelNumber = 16,
+        TransportState = 32,
+        Modulation = 64,
+        CopyProtectionStatus = 128,
 
-        All = Temperature | SignalLevel | SignalSNR | Frequecy | ChannelNumber,
+        All = Temperature | SignalLevel | SignalSNR | Frequecy | ChannelNumber | TransportState | Modulation | CopyProtectionStatus,
     }
 
     public class CetonInfiniTV4
@@ -107,6 +114,21 @@ namespace Ceton
                 stats.ChannelNumber = (int?)val;
             }
 
+            if (_items.HasFlag(InfiniTV4TunerItems.TransportState))
+            {
+                stats.TransportState = GetValue(_hostname, stats.TunerIndex, "av", "TransportState").result;
+            }
+
+            if (_items.HasFlag(InfiniTV4TunerItems.Modulation))
+            {
+                stats.Modulation = GetValue(_hostname, stats.TunerIndex, "tuner", "Modulation").result;
+            }
+
+            if (_items.HasFlag(InfiniTV4TunerItems.CopyProtectionStatus))
+            {
+                stats.CopyProtectionStatus = GetValue(_hostname, stats.TunerIndex, "diag", "CopyProtectionStatus").result;
+            }
+
             return stats;
         }
 
@@ -133,7 +155,11 @@ namespace Ceton
 
                 string raw = client.DownloadString(uri);
 
-                return Newtonsoft.Json.JsonConvert.DeserializeObject<CetonResponse>(raw);
+                CetonResponse response = new CetonResponse();
+
+                response.result = raw.Replace("{ \"result\": \"", "").Replace("\" }", "");
+
+                return response;
             }
         }
     }
