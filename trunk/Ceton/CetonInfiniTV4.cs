@@ -39,11 +39,6 @@ namespace Ceton
 
     public class CetonInfiniTV4
     {
-        private class CetonResponse
-        {
-            public string result { get; set; }
-        }
-
         private const string URL_FORMAT = "http://{0}/get_var.json?i={1}&s={2}&v={3}";
 
         private string _hostname;
@@ -82,6 +77,7 @@ namespace Ceton
             {
                 TunerIndex = (int)o
             };
+
             decimal? val = null;
 
             if (_items.HasFlag(InfiniTV4TunerItems.Temperature))
@@ -116,50 +112,74 @@ namespace Ceton
 
             if (_items.HasFlag(InfiniTV4TunerItems.TransportState))
             {
-                stats.TransportState = GetValue(_hostname, stats.TunerIndex, "av", "TransportState").result;
+                stats.TransportState = GetValue(_hostname, stats.TunerIndex, "av", "TransportState");
             }
 
             if (_items.HasFlag(InfiniTV4TunerItems.Modulation))
             {
-                stats.Modulation = GetValue(_hostname, stats.TunerIndex, "tuner", "Modulation").result;
+                stats.Modulation = GetValue(_hostname, stats.TunerIndex, "tuner", "Modulation");
             }
 
             if (_items.HasFlag(InfiniTV4TunerItems.CopyProtectionStatus))
             {
-                stats.CopyProtectionStatus = GetValue(_hostname, stats.TunerIndex, "diag", "CopyProtectionStatus").result;
+                stats.CopyProtectionStatus = GetValue(_hostname, stats.TunerIndex, "diag", "CopyProtectionStatus");
             }
 
             return stats;
         }
 
-        private decimal? ParseDecimal(CetonResponse response, string suffix)
+        private decimal? ParseDecimal(string response, string suffix)
         {
-            if (response.result.EndsWith(suffix))
+            try
             {
-                decimal d = 0.0M;
-
-                if (decimal.TryParse(response.result.Substring(0, response.result.Length - suffix.Length), out d))
+                if (response.EndsWith(suffix))
                 {
-                    return d;
+                    decimal d = 0.0M;
+
+                    if (decimal.TryParse(response.Substring(0, response.Length - suffix.Length), out d))
+                    {
+                        return d;
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error parsing decimal: {0} {1}", response, suffix);
+                Console.WriteLine(ex);
             }
 
             return null;
         }
 
-        private CetonResponse GetValue(string hostname, int tuner, string s, string counter)
+        private string GetValue(string hostname, int tuner, string s, string counter)
         {
-            using (WebClient client = new WebClient())
+            string response = "";
+
+            try
             {
-                Uri uri = new Uri(string.Format(URL_FORMAT, hostname, tuner, s, counter));
+                using (WebClient client = new WebClient())
+                {
+                    Uri uri = new Uri(string.Format(URL_FORMAT, hostname, tuner, s, counter));
 
-                string raw = client.DownloadString(uri);
+                    string raw = client.DownloadString(uri);
 
-                CetonResponse response = new CetonResponse();
+                    response = raw.Replace("{ \"result\": \"", "").Replace("\" }", "");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error getting value: {0} {1} {2} {3}", hostname, tuner, s, counter);
+                Console.WriteLine(ex);
+            }
 
-                response.result = raw.Replace("{ \"result\": \"", "").Replace("\" }", "");
+            return response;
+        }
 
-                return response;
+        public string Hostname
+        {
+            get
+            {
+                return _hostname;
             }
         }
     }

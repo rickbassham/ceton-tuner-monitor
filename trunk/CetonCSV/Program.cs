@@ -10,9 +10,12 @@ namespace CetonCSV
     {
         static void Main(string[] args)
         {
-            Ceton.CetonInfiniTV4 mgr = new Ceton.CetonInfiniTV4("192.168.200.1");
+            string ipAddress = args.Length < 1 ? "192.168.200.1" : args[0];
+            string filePath = args.Length < 2 ? "ceton.csv" : args[1];
 
-            using (TextWriter w = new StreamWriter("ceton.csv", true))
+            Ceton.CetonInfiniTV4 mgr = new Ceton.CetonInfiniTV4(ipAddress);
+
+            using (TextWriter w = new StreamWriter(filePath, true))
             {
                 w.WriteLine("DateTime,Tuner,Temperature in C,SignalLevel dBmV,SignalSNR dB,Frequency,ChannelNumber,TransportState,Modulation,CopyProtectionSatus");
 
@@ -22,7 +25,7 @@ namespace CetonCSV
 
                     foreach (var stat in stats)
                     {
-                        w.WriteLine("{0:s},{1},{2},{3},{4},{5},{6},{7},{8}", DateTime.Now, stat.TunerIndex, stat.Temperature, stat.SignalLevel, stat.SignalSNR, stat.Frequency, stat.ChannelNumber, stat.TransportState, stat.Modulation, stat.CopyProtectionStatus);
+                        w.WriteLine("{0:s},{1},{2},{3},{4},{5},{6},{7},{8},{9}", DateTime.Now, stat.TunerIndex, stat.Temperature, stat.SignalLevel, stat.SignalSNR, stat.Frequency, stat.ChannelNumber, stat.TransportState, stat.Modulation, stat.CopyProtectionStatus);
                     }
 
                     w.Flush();

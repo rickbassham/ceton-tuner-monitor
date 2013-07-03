@@ -11,18 +11,12 @@ namespace CetonMonitor
 
     public class CetonPerformanceCounterManager : IDisposable
     {
-        private class CetonResponse
-        {
-            public string result { get; set; }
-        }
-
         private class CounterDescription
         {
             public string NameFormat { get; private set; }
             public string Description { get; private set; }
             public PerformanceCounterType Type { get; private set; }
             public long InitialValue { get; private set; }
-            public string UrlFormat { get; private set; }
 
             public static CounterDescription Temperature
             {
@@ -34,7 +28,6 @@ namespace CetonMonitor
                         Description = "The temperature of the tuner in Celcius",
                         Type = PerformanceCounterType.RawFraction,
                         InitialValue = 0,
-                        UrlFormat = "http://{0}/get_var.json?i={1}&s=diag&v=Temperature"
                     };
                 }
             }
@@ -60,8 +53,16 @@ namespace CetonMonitor
 
         private Dictionary<string, List<PerformanceCounter>> _counters;
 
+        private List<Ceton.CetonInfiniTV4> _mgrs;
+
         public CetonPerformanceCounterManager()
         {
+            _mgrs = new List<Ceton.CetonInfiniTV4>();
+
+            foreach (var ip in Settings.Default.CetonTuners)
+            {
+                _mgrs.Add(new Ceton.CetonInfiniTV4(ip, Ceton.InfiniTV4TunerItems.Temperature));
+            }
         }
 
         public void Start()
@@ -169,44 +170,17 @@ namespace CetonMonitor
 
         private void UpdateCounters()
         {
-            foreach (var ip in Settings.Default.CetonTuners)
+            Parallel.ForEach(_mgrs, mgr =>
             {
-                Parallel.For(0, 4, new ParallelOptions { MaxDegreeOfParallelism = 1 }, i =>
+                mgr.Update();
+
+                var stats = mgr.TunerStats;
+
+                foreach (var stat in stats)
                 {
-                    try
-                    {
-                        WebClient client = new WebClient();
-
-                        string temperature = client.DownloadString(string.Format(CounterDescription.Temperature.UrlFormat, ip, i));
-
-                        client.Dispose();
-
-                        long parsedVal = ParseTemperature(temperature);
-
-                        _counters[ip].Find(pc => pc.CounterName == string.Format(CounterDescription.Temperature.NameFormat, i + 1)).RawValue = parsedVal;
-                    }
-                    catch (Exception)
-                    {
-                    }
-                });
-            }
-        }
-
-        private long ParseTemperature(string rawResponse)
-        {
-            var x = Newtonsoft.Json.JsonConvert.DeserializeObject<CetonResponse>(rawResponse);
-
-            if (x.result.EndsWith(" C"))
-            {
-                decimal d = 0.0M;
-
-                if (decimal.TryParse(x.result.Substring(0, x.result.Length - 2), out d))
-                {
-                    return (long)(d * 10);
+                    _counters[mgr.Hostname].Find(pc => pc.CounterName == string.Format(CounterDescription.Temperature.NameFormat, stat.TunerIndex + 1)).RawValue = (long)stat.Temperature;
                 }
-            }
-
-            return 0;
+            });
         }
 
         #region IDisposable
@@ -226,6 +200,19 @@ namespace CetonMonitor
                     _timer.Stop();
                     _timer.Dispose();
                     _timer = null;
+                }
+
+                if (_counters != null)
+                {
+                    foreach (var item in _counters.Keys)
+                    {
+                        foreach (var counter in _counters[item])
+                        {
+                            counter.Dispose();
+                        }
+                    }
+
+                    _counters = null;
                 }
             }
         }
